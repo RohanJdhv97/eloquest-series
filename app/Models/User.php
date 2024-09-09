@@ -49,4 +49,24 @@ class User extends Authenticatable
     {
         return $this->hasMany(Post::class);
     }
+
+    public function scopeSearch($query, $search = null)
+    {
+        // $query->join('posts', 'posts.user_id', '=', 'users.id');
+
+        collect(explode(' ', $search))->filter()->each(function ($term) use ($query) {
+            $term = "{$term}%";
+            $query->whereIn('id',function($query) use ($term){
+               $query->select('id')->from(function($query) use ($term){
+                  $query->select('id')->from('users')->union(
+                      $query->newQuery()
+                        ->select('users.id')
+                        ->from('users')
+                        ->join('posts', 'posts.user_id', '=', 'users.id')
+                        ->where('posts.title', 'like', $term)
+                  );
+               }, 'matches');
+            });
+        });
+    }
 }

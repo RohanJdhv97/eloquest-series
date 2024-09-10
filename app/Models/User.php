@@ -54,18 +54,22 @@ class User extends Authenticatable
     {
         // $query->join('posts', 'posts.user_id', '=', 'users.id');
 
-        collect(explode(' ', $search))->filter()->each(function ($term) use ($query) {
-            $term = "{$term}%";
-            $query->whereIn('id',function($query) use ($term){
-               $query->select('id')->from(function($query) use ($term){
-                  $query->select('id')->from('users')->union(
-                      $query->newQuery()
-                        ->select('users.id')
+        collect(str_getcsv($search, ' ', '"'))->filter()->each(function ($term) use ($query) {
+            $term = preg_replace('/[^A-Za-z0-9]/', '', $term) . "%";
+            $query->whereIn('id', function ($query) use ($term) {
+                $query->select('id')->from(function ($query) use ($term) {
+                    $query->select('id')
                         ->from('users')
-                        ->join('posts', 'posts.user_id', '=', 'users.id')
-                        ->where('posts.title', 'like', $term)
-                  );
-               }, 'matches');
+                       ->where('name_normalized', 'like', $term)
+                       ->orWhere('email_normalized', 'like', $term)
+                        ->union(
+                            $query->newQuery()
+                                ->select('users.id')
+                                ->from('users')
+                                ->join('posts', 'posts.user_id', '=', 'users.id')
+                                ->where('posts.title_normalized', 'like', $term)
+                        );
+                }, 'matches');
             });
         });
     }
